@@ -75,25 +75,23 @@ if GROQ_API_KEY:
 
 # Helper Functions
 
-def fetch_news(category="general", country="us", page_size=5):
-    """Fetch latest news from News API"""
+def fetch_news(category="general", page_size=10):
+    """Fetch latest global news from News API (no country filter)"""
     if not NEWS_API_KEY:
         return {"error": "News API key not configured. Please add it to Streamlit secrets."}
 
     try:
         url = "https://newsapi.org/v2/top-headlines"
         params = {
-            "country": country.lower(),
             "category": category,
             "pageSize": page_size,
+            "language": "en",
             "apiKey": NEWS_API_KEY
         }
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 401:
             return {"error": "Invalid News API key. Please check your API key in Streamlit secrets."}
-        elif response.status_code == 400:
-            return {"error": f"Invalid country code '{country}'. Please use 2-letter country codes (e.g., us, in, gb, fr, de)."}
         elif response.status_code == 429:
             return {"error": "News API rate limit exceeded. Please try again later."}
 
@@ -101,7 +99,7 @@ def fetch_news(category="general", country="us", page_size=5):
         data = response.json()
 
         if data.get("totalResults", 0) == 0:
-            return {"error": f"No articles found for country '{country}' in category '{category}'. Try a different combination."}
+            return {"error": f"No articles found for category '{category}'. Try a different one."}
 
         return data
     except Exception as e:
@@ -329,26 +327,7 @@ if page == "Dashboard":
 elif page == "News":
     st.title("📰 Global News")
 
-    popular_countries = {
-        "🇺🇸 United States": "us",
-        "🇮🇳 India": "in",
-        "🇬🇧 United Kingdom": "gb",
-        "🇨🇦 Canada": "ca",
-        "🇦🇺 Australia": "au",
-        "🇫🇷 France": "fr",
-        "🇩🇪 Germany": "de",
-        "🇯🇵 Japan": "jp",
-        "🇧🇷 Brazil": "br",
-        "🇲🇽 Mexico": "mx",
-        "🇮🇹 Italy": "it",
-        "🇪🇸 Spain": "es",
-        "🇨🇳 China": "cn",
-        "🇷🇺 Russia": "ru",
-        "🇰🇷 South Korea": "kr",
-        "Custom (Enter Code)": "custom"
-    }
-
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2 = st.columns([3, 1])
 
     with col1:
         category = st.selectbox(
@@ -357,44 +336,19 @@ elif page == "News":
         )
 
     with col2:
-        selected_country_name = st.selectbox(
-            "🌍 Country",
-            list(popular_countries.keys())
-        )
-
-        if popular_countries[selected_country_name] == "custom":
-            country_code = None
-        else:
-            country_code = popular_countries[selected_country_name]
-
-    if selected_country_name == "Custom (Enter Code)":
-        st.info("💡 **Tip:** Use 2-letter country codes. Examples: ae (UAE), sg (Singapore), nl (Netherlands), ch (Switzerland)")
-        custom_country = st.text_input(
-            "Enter 2-letter country code:",
-            placeholder="e.g., ae, sg, nl, ch",
-            max_chars=2
-        )
-        if custom_country:
-            country_code = custom_country.lower().strip()
-        else:
-            country_code = "us"
-
-    with col3:
         st.write("")
         st.write("")
         if st.button("🔄 Refresh", use_container_width=True):
             st.rerun()
 
     st.markdown("---")
+    st.caption(f"🌐 Showing **{category}** news from around the world")
 
-    display_country = selected_country_name.split(" ", 1)[-1] if selected_country_name != "Custom (Enter Code)" else country_code.upper()
-    st.caption(f"📍 Showing **{category}** news from **{display_country}**")
-
-    news_data = fetch_news(category=category, country=country_code, page_size=10)
+    news_data = fetch_news(category=category, page_size=10)
 
     if "error" in news_data:
         st.error(f"❌ {news_data['error']}")
-        st.info("💡 Try selecting a different category or country. Not all countries have articles in all categories.")
+        st.info("💡 Try selecting a different category.")
     elif news_data.get("articles"):
         st.success(f"Found {news_data.get('totalResults', 0)} articles")
 
@@ -432,7 +386,7 @@ elif page == "News":
             st.markdown("</div>", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
     else:
-        st.info("No news articles available for this category and country")
+        st.info("No news articles available for this category")
 
 elif page == "Weather":
     st.title("🌦 Weather Information")
